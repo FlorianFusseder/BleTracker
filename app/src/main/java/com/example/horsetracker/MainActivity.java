@@ -52,8 +52,16 @@ public class MainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_main);
 
-        TextView textView = findViewById(R.id.log);
-        refreshLines(textView);
+        try (DatabaseHelper databaseHelper = new DatabaseHelper(this)) {
+            TextView textView = this.findViewById(R.id.log);
+            String lines = databaseHelper.getAllLogLines().stream()
+                    .map(LogLine::toDisplayString)
+                    .collect(Collectors.joining("\n"));
+            textView.setText(lines);
+        }
+
+        BlueToothLEManager blueToothLEManager = new BlueToothLEManager(this);
+
 
         Button startButton = findViewById(R.id.start);
         startButton.setOnClickListener(view -> {
@@ -61,30 +69,13 @@ public class MainActivity extends AppCompatActivity {
                     "Started Scanning!",
                     Toast.LENGTH_SHORT).show();
 
-            BlueToothLEManager blueToothLEManager = new BlueToothLEManager((BluetoothManager) this.getSystemService(Context.BLUETOOTH_SERVICE));
             blueToothLEManager.scanLeDevice();
-            DatabaseHelper databaseHelper = new DatabaseHelper(this);
-
-            databaseHelper
-                    .insertLogLine(-25, Instant.now().toString(), "aa:123");
-            refreshLines(textView);
-            databaseHelper.close();
         });
 
 
         Button stopButton = findViewById(R.id.stop);
         stopButton.setOnClickListener(view -> {
-            if (textView.length() > 0) {
-                CharSequence text = textView.getText();
-                int i = textView.length() - 1;
-                do {
-                    i--;
-                    System.out.println("i = " + i);
-                }
-                while ('\n' != textView.getText().charAt(i) && i > 0);
-                CharSequence charSequence = text.subSequence(0, i);
-                textView.setText(charSequence);
-            }
+            blueToothLEManager.stopScan();
         });
     }
 
@@ -95,15 +86,4 @@ public class MainActivity extends AppCompatActivity {
         Log.i("result", Arrays.toString(grantResults));
     }
 
-    private void refreshLines(TextView textView) {
-        DatabaseHelper databaseHelper = new DatabaseHelper(this);
-
-
-        String lines = databaseHelper.getAllLogLines().stream()
-                .map(LogLine::toDisplayString)
-                .collect(Collectors.joining("\n"));
-
-        textView.setText(lines);
-        databaseHelper.close();
-    }
 }
