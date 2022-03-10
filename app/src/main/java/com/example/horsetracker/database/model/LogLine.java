@@ -2,6 +2,7 @@ package com.example.horsetracker.database.model;
 
 import android.content.ContentValues;
 
+import java.text.DecimalFormat;
 import java.util.Objects;
 
 public class LogLine {
@@ -12,13 +13,15 @@ public class LogLine {
     public static final String COL_RSSI = "rssi";
     public static final String COL_TIMESTAMP = "timestamp";
     public static final String COL_ADDRESS = "address";
-    private static final String COL_DISTANCE = "distance";
+    public static final String COL_DISTANCE = "distance";
 
     private int id;
     private int rssi;
     private float distance;
     private String timestamp;
     private String address;
+
+    private final DecimalFormat df = new DecimalFormat("###.#");
 
     public static final String CREATE_TABLE =
             "CREATE TABLE " + TABLE_NAME + "("
@@ -49,6 +52,14 @@ public class LogLine {
         return distance;
     }
 
+    public void setDistance(float distance) {
+        this.distance = distance;
+    }
+
+    public void setDistanceFromRSSI(int rssi) {
+        this.distance = calcDistance(rssi);
+    }
+
     public String getTimestamp() {
         return timestamp;
     }
@@ -72,20 +83,18 @@ public class LogLine {
         this.rssi = rssi;
         this.timestamp = timestamp;
         this.address = address;
+        this.distance = calcDistance(rssi);
     }
 
-    public LogLine(int id, int rssi, float distance, String timestamp, String address) {
-        this.id = id;
-        this.rssi = rssi;
-        this.distance = distance;
-        this.timestamp = timestamp;
-        this.address = address;
+    private float calcDistance(int rssi) {
+        return (float) Math.pow(10, ((-69 - rssi) / (10f * 2f)));
     }
 
     public ContentValues toContentValue() {
         ContentValues contentValues = new ContentValues();
         contentValues.put(COL_ADDRESS, this.getAddress());
         contentValues.put(COL_RSSI, this.getRssi());
+        contentValues.put(COL_DISTANCE, this.getDistance());
         return contentValues;
     }
 
@@ -103,7 +112,7 @@ public class LogLine {
     }
 
     public String toDisplayString() {
-        return timestamp + " -> " + rssi;
+        return timestamp + " -> ~" + df.format(distance) + "m";
     }
 
     @Override

@@ -55,6 +55,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     logLine.setRssi(cursor.getInt(cursor.getColumnIndex(LogLine.COL_RSSI)));
                     logLine.setTimestamp(cursor.getString(cursor.getColumnIndex(LogLine.COL_TIMESTAMP)));
                     logLine.setAddress(cursor.getString(cursor.getColumnIndex(LogLine.COL_ADDRESS)));
+                    logLine.setDistance(cursor.getFloat(cursor.getColumnIndex(LogLine.COL_DISTANCE)));
                     logLines.addFirst(logLine);
                 } while (cursor.moveToPrevious() && logLines.size() < size);
             }
