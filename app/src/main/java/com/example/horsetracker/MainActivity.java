@@ -1,6 +1,9 @@
 package com.example.horsetracker;
 
 import android.Manifest;
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -8,12 +11,14 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.NotificationCompat;
 
 import com.example.horsetracker.ble.BleScannerService;
 import com.example.horsetracker.database.LogLineDatabaseHelper;
@@ -31,6 +36,7 @@ public class MainActivity extends AppCompatActivity {
     private BroadcastReceiver broadcastReceiver;
     private Button startButton;
     private Button stopButton;
+    private Button clearButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,10 +72,17 @@ public class MainActivity extends AppCompatActivity {
 
         startButton = findViewById(R.id.start);
         stopButton = findViewById(R.id.stop);
+        clearButton = findViewById(R.id.clear);
+
         stopButton.setEnabled(false);
 
         startButton.setOnClickListener(view -> {
-            this.startService(this.intent);
+            this.startForegroundService(this.intent);
+        });
+
+        clearButton.setOnClickListener(view -> {
+            new LogLineDatabaseHelper(this).clearLogLines();
+            refreshText();
         });
 
         stopButton.setOnClickListener(view -> {
@@ -94,7 +107,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private class DataUpdateReceiver extends BroadcastReceiver {
-
 
         private final MainActivity mainActivity;
 

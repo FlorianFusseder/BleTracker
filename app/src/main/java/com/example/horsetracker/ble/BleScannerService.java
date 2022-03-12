@@ -1,11 +1,14 @@
 package com.example.horsetracker.ble;
 
+import android.app.IntentService;
 import android.app.Notification;
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanResult;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Handler;
@@ -18,90 +21,86 @@ import android.util.Log;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
+import androidx.core.app.NotificationCompat;
 
+import com.example.horsetracker.MainActivity;
 import com.example.horsetracker.R;
 
 import java.time.Instant;
 
-public class BleScannerService extends Service {
+public class BleScannerService extends IntentService {
 
     public static final String SCAN_STATE_CHANGED = "BLESCANNER_SCAN_STATE_CHANGED";
     public static final String NEW_ENTRY = "BLESCANNER_NEW_ENTRY";
-
-    private ServiceHandler serviceHandler;
-    private Looper serviceLooper;
-
-    // Handler that receives messages from the thread
-    private final class ServiceHandler extends Handler {
-
-
-        public ServiceHandler(Looper looper) {
-            super(looper);
-        }
-
-        @Override
-        public void handleMessage(Message msg) {
-            ScanCallback leScanCallback = new ScanCallback() {
-                @Override
-                public void onScanResult(int callbackType, ScanResult result) {
-                    Intent intent = new Intent(NEW_ENTRY);
-                    intent.putExtra("rssi", result.getRssi());
-                    intent.putExtra("timestamp", Instant.now().toString());
-                    intent.putExtra("address", result.getDevice().getAddress());
-                    sendBroadcast(intent);
-                }
-            };
-
-            BlueToothLEManager blueToothLEManager = new BlueToothLEManager(5000, leScanCallback);
-
-//            try {
-            blueToothLEManager.scanLeDevice();
-//                Thread.sleep(1000 * 60);
-//            } catch (InterruptedException e) {
-//                Thread.currentThread().interrupt();
-//            }
-        }
-    }
-
+    private boolean keepScanning;
+    private static final String TAG = "Ble";
+    private int scanPeriod;
+    private int waitPeriod;
 
     public BleScannerService() {
+        super("BleScannerService");
+        this.keepScanning = false;
+        this.scanPeriod = 5000;
+        this.waitPeriod = 5000;
     }
 
     @Override
-    public void onCreate() {
-        HandlerThread thread = new HandlerThread("ServiceStartArguments",
-                Process.THREAD_PRIORITY_BACKGROUND);
-        thread.start();
-        serviceLooper = thread.getLooper();
-        serviceHandler = new ServiceHandler(serviceLooper);
-    }
+    protected void onHandleIntent(@Nullable Intent intent) {
+        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
+        NotificationChannel channel = new NotificationChannel("channelID", "name", NotificationManager.IMPORTANCE_HIGH);
+        channel.setDescription("Hello! This is a notification.");
+        notificationManager.createNotificationChannel(channel);
+
+        Intent notificationIntent = new Intent(this, MainActivity.class);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
+
+        Notification notification = new NotificationCompat.Builder(this, "channelID")
+                .setContentTitle("HorseTracker")
+                .setContentText("scanning...")
+                .setSmallIcon(R.drawable.horse)
+                .setContentIntent(pendingIntent)
+                .build();
+
+        startForeground(1, notification);
+
+
         Toast.makeText(this, "Started Scanning", Toast.LENGTH_SHORT).show();
         sendBroadcast(new Intent(SCAN_STATE_CHANGED));
 
-        // For each start request, send a message to start a job and deliver the
-        // start ID so we know which request we're stopping when we finish the job
-        Message msg = serviceHandler.obtainMessage();
-        msg.arg1 = startId;
-        serviceHandler.sendMessage(msg);
-        return START_STICKY;
-    }
+        keepScanning = true;
 
-    @Nullable
-    @Override
-    public IBinder onBind(Intent intent) {
-        throw new UnsupportedOperationException("Not Implemented");
-    }
 
+        ScanCallback leScanCallback = new ScanCallback() {
+            @Override
+            public void onScanResult(int callbackType, ScanResult result) {
+                Intent intent = new Intent(NEW_ENTRY);
+                intent.putExtra("rssi", result.getRssi());
+                intent.putExtra("timestamp", Instant.now().toString());
+                intent.putExtra("address", result.getDevice().getAddress());
+                sendBroadcast(intent);
+            }
+        };
+
+        BlueToothLEManager blueToothLEManager = new BlueToothLEManager(scanPeriod, leScanCallback);
+
+        while (keepScanning)
+            try {
+                Log.i(TAG, "onHandleIntent: start scan");
+                blueToothLEManager.scanLeDevice();
+                Log.i(TAG, "onHandleIntent: done scan, wait");
+                Thread.sleep(waitPeriod);
+                Log.i(TAG, "onHandleIntent: done waiting");
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+    }
 
     @Override
     public void onDestroy() {
+        keepScanning = false;
         sendBroadcast(new Intent(SCAN_STATE_CHANGED));
-
         Toast.makeText(this, "Stopped Scanning", Toast.LENGTH_SHORT).show();
-
     }
 
 }

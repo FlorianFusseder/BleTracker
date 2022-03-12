@@ -18,8 +18,6 @@ public class LogLineDatabaseHelper extends SQLiteOpenHelper {
         super(context, "horsetracker_db", null, 1);
     }
 
-
-
     @Override
     public void onCreate(SQLiteDatabase sqLiteDatabase) {
         sqLiteDatabase.execSQL(LogLine.CREATE_TABLE);
@@ -29,6 +27,12 @@ public class LogLineDatabaseHelper extends SQLiteOpenHelper {
     public void onUpgrade(SQLiteDatabase sqLiteDatabase, int i, int i1) {
         sqLiteDatabase.execSQL("DROP TABLE IF EXISTS " + LogLine.TABLE_NAME);
         this.onCreate(sqLiteDatabase);
+    }
+
+    public void clearLogLines() {
+        try (SQLiteDatabase writableDatabase = this.getWritableDatabase()) {
+            writableDatabase.execSQL("delete from " + LogLine.TABLE_NAME);
+        }
     }
 
     public void insertLogLine(int rssi, String timestamp, String address) {

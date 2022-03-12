@@ -35,6 +35,8 @@ public class BlueToothLEManager {
     private final Handler handler = new Handler();
     private final long scanPeriod;
     private final ScanCallback callback;
+    private final ScanSettings settings;
+    private final ArrayList<ScanFilter> scanFilters;
 
 
     public BlueToothLEManager(long scanPeriod, ScanCallback callback) {
@@ -42,36 +44,30 @@ public class BlueToothLEManager {
         this.callback = callback;
         this.scanning = false;
         this.bluetoothLeScanner = BluetoothAdapter.getDefaultAdapter().getBluetoothLeScanner();
+
+        settings = new ScanSettings.Builder()
+                .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+                .setScanMode(ScanSettings.CALLBACK_TYPE_FIRST_MATCH)
+                .build();
+
+        ScanFilter filter = new ScanFilter.Builder()
+                .setDeviceAddress("7C:2F:80:90:44:3D")
+                .build();
+
+        scanFilters = new ArrayList<>();
+        scanFilters.add(filter);
     }
 
-    public void scanLeDevice() {
+    public void scanLeDevice() throws InterruptedException {
         if (!scanning) {
-            // Stops scanning after a predefined scan period.
-            handler.postDelayed(() -> {
-                scanning = false;
-                bluetoothLeScanner.stopScan(callback);
-                Log.i("BleScan", "Stopped");
-            }, this.scanPeriod);
-
             scanning = true;
-            ScanSettings settings = new ScanSettings.Builder()
-                    .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-                    .setScanMode(ScanSettings.CALLBACK_TYPE_FIRST_MATCH)
-                    .build();
-
-            ScanFilter filter = new ScanFilter.Builder()
-                    .setDeviceAddress("7C:2F:80:90:44:3D")
-                    .build();
-
-            ArrayList<ScanFilter> scanFilters = new ArrayList<>();
-            scanFilters.add(filter);
-
             bluetoothLeScanner.startScan(scanFilters, settings, callback);
+            Thread.sleep(this.scanPeriod);
+            bluetoothLeScanner.stopScan(callback);
+            scanning = false;
             Log.i("BleScan", "Started, Runtime: " + scanPeriod);
         } else {
-            scanning = false;
-            bluetoothLeScanner.stopScan(callback);
-            Log.i("BleScan", "Stopped, because already running");
+            Log.i("BleScan", "Skip, because already running");
         }
     }
 
