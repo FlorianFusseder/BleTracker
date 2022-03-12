@@ -1,7 +1,6 @@
-package com.example.horsetracker.utils;
+package com.example.horsetracker.ble;
 
 import android.Manifest;
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
@@ -15,7 +14,7 @@ import android.widget.TextView;
 
 import com.example.horsetracker.MainActivity;
 import com.example.horsetracker.R;
-import com.example.horsetracker.database.DatabaseHelper;
+import com.example.horsetracker.database.LogLineDatabaseHelper;
 import com.example.horsetracker.database.model.LogLine;
 
 import java.time.Instant;
@@ -31,6 +30,7 @@ public class BlueToothLEManager {
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_BACKGROUND_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.FOREGROUND_SERVICE,
     };
 
     private final BluetoothLeScanner bluetoothLeScanner;
@@ -85,11 +85,11 @@ public class BlueToothLEManager {
         @Override
         public void onScanResult(int callbackType, ScanResult result) {
             Log.i("BleScan", "Got callback: " + result.getDevice());
-            try (DatabaseHelper databaseHelper = new DatabaseHelper(activity)) {
+            try (LogLineDatabaseHelper databaseHelper = new LogLineDatabaseHelper(activity)) {
                 databaseHelper.insertLogLine(result.getRssi(), Instant.now().toString(), result.getDevice().getAddress());
             }
 
-            try (DatabaseHelper databaseHelper = new DatabaseHelper(activity)) {
+            try (LogLineDatabaseHelper databaseHelper = new LogLineDatabaseHelper(activity)) {
                 TextView textView = activity.findViewById(R.id.log);
                 String lines = databaseHelper.getAllLogLines().stream()
                         .map(LogLine::toDisplayString)

@@ -11,10 +11,10 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
-public class DatabaseHelper extends SQLiteOpenHelper {
+public class LogLineDatabaseHelper extends SQLiteOpenHelper {
 
 
-    public DatabaseHelper(Context context) {
+    public LogLineDatabaseHelper(Context context) {
         super(context, "horsetracker_db", null, 1);
     }
 

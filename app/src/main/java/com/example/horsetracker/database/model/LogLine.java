@@ -112,7 +112,7 @@ public class LogLine {
     }
 
     public String toDisplayString() {
-        return timestamp + " -> ~" + df.format(distance) + "m";
+        return timestamp + ": (" + rssi + ") -> ~" + df.format(distance) + "m";
     }
 
     @Override

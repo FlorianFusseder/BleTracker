@@ -1,13 +1,12 @@
 package com.example.horsetracker;
 
 import android.Manifest;
-import android.bluetooth.BluetoothManager;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.location.LocationManager;
 import android.os.Bundle;
-import android.provider.Settings;
 import android.util.Log;
 import android.widget.Button;
 import android.widget.TextView;
@@ -15,19 +14,23 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
 
-import com.example.horsetracker.database.DatabaseHelper;
+import com.example.horsetracker.ble.BleScannerService;
+import com.example.horsetracker.database.LogLineDatabaseHelper;
 import com.example.horsetracker.database.model.LogLine;
-import com.example.horsetracker.utils.BlueToothLEManager;
+import com.example.horsetracker.ble.BlueToothLEManager;
 
-import java.time.Instant;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
 
 public class MainActivity extends AppCompatActivity {
 
+
+    private Intent intent;
+    private BroadcastReceiver broadcastReceiver;
+    private Button startButton;
+    private Button stopButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,7 +39,8 @@ public class MainActivity extends AppCompatActivity {
         if (checkSelfPermission(Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED ||
                 checkSelfPermission(Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED ||
                 checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
-                checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
+                checkSelfPermission(Manifest.permission.FOREGROUND_SERVICE) != PackageManager.PERMISSION_GRANTED
         ) {
             requestPermissions(BlueToothLEManager.PERMISSIONS, 1);
         } else {
@@ -52,7 +56,7 @@ public class MainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_main);
 
-        try (DatabaseHelper databaseHelper = new DatabaseHelper(this)) {
+        try (LogLineDatabaseHelper databaseHelper = new LogLineDatabaseHelper(this)) {
             TextView textView = this.findViewById(R.id.log);
             String lines = databaseHelper.getAllLogLines().stream()
                     .map(LogLine::toDisplayString)
@@ -60,30 +64,44 @@ public class MainActivity extends AppCompatActivity {
             textView.setText(lines);
         }
 
-        BlueToothLEManager blueToothLEManager = new BlueToothLEManager(this);
+        this.intent = new Intent(this, BleScannerService.class);
 
+        startButton = findViewById(R.id.start);
+        stopButton = findViewById(R.id.stop);
+        stopButton.setEnabled(false);
 
-        Button startButton = findViewById(R.id.start);
         startButton.setOnClickListener(view -> {
-            Toast.makeText(this,
-                    "Started Scanning!",
-                    Toast.LENGTH_SHORT).show();
-
-            blueToothLEManager.scanLeDevice();
+            this.startService(this.intent);
         });
 
-
-        Button stopButton = findViewById(R.id.stop);
         stopButton.setOnClickListener(view -> {
-            blueToothLEManager.stopScan();
+            this.stopService(this.intent);
         });
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        Log.i("result", Arrays.toString(grantResults));
+    protected void onResume() {
+        super.onResume();
+        if (broadcastReceiver == null) broadcastReceiver = new DataUpdateReceiver();
+        IntentFilter intentFilter = new IntentFilter(BleScannerService.SCAN_STATE_CHANGED);
+        registerReceiver(broadcastReceiver, intentFilter);
     }
 
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (broadcastReceiver != null) unregisterReceiver(broadcastReceiver);
+    }
+
+    private class DataUpdateReceiver extends BroadcastReceiver {
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (!BleScannerService.SCAN_STATE_CHANGED.equals(intent.getAction()))
+                return;
+
+            stopButton.setEnabled(!stopButton.isEnabled());
+            startButton.setEnabled(!startButton.isEnabled());
+        }
+    }
 }
