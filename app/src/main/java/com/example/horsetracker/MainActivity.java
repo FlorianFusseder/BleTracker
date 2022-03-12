@@ -56,13 +56,11 @@ public class MainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_main);
 
-        try (LogLineDatabaseHelper databaseHelper = new LogLineDatabaseHelper(this)) {
-            TextView textView = this.findViewById(R.id.log);
-            String lines = databaseHelper.getAllLogLines().stream()
-                    .map(LogLine::toDisplayString)
-                    .collect(Collectors.joining("\n"));
-            textView.setText(lines);
-        }
+        broadcastReceiver = new DataUpdateReceiver(this);
+        registerReceiver(broadcastReceiver, new IntentFilter(BleScannerService.SCAN_STATE_CHANGED));
+        registerReceiver(broadcastReceiver, new IntentFilter(BleScannerService.NEW_ENTRY));
+
+        refreshText();
 
         this.intent = new Intent(this, BleScannerService.class);
 
@@ -79,29 +77,52 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        if (broadcastReceiver == null) broadcastReceiver = new DataUpdateReceiver();
-        IntentFilter intentFilter = new IntentFilter(BleScannerService.SCAN_STATE_CHANGED);
-        registerReceiver(broadcastReceiver, intentFilter);
+    private void refreshText() {
+        try (LogLineDatabaseHelper databaseHelper = new LogLineDatabaseHelper(this)) {
+            TextView textView = this.findViewById(R.id.log);
+            String lines = databaseHelper.getAllLogLines().stream()
+                    .map(LogLine::toDisplayString)
+                    .collect(Collectors.joining("\n"));
+            textView.setText(lines);
+        }
     }
 
     @Override
-    protected void onPause() {
-        super.onPause();
-        if (broadcastReceiver != null) unregisterReceiver(broadcastReceiver);
+    protected void onResume() {
+        super.onResume();
+        refreshText();
     }
 
     private class DataUpdateReceiver extends BroadcastReceiver {
 
+
+        private final MainActivity mainActivity;
+
+        public DataUpdateReceiver(MainActivity mainActivity) {
+            this.mainActivity = mainActivity;
+        }
+
         @Override
         public void onReceive(Context context, Intent intent) {
-            if (!BleScannerService.SCAN_STATE_CHANGED.equals(intent.getAction()))
-                return;
+            if (BleScannerService.SCAN_STATE_CHANGED.equals(intent.getAction())) {
+                stopButton.setEnabled(!stopButton.isEnabled());
+                startButton.setEnabled(!startButton.isEnabled());
+            } else if (BleScannerService.NEW_ENTRY.equals(intent.getAction())) {
 
-            stopButton.setEnabled(!stopButton.isEnabled());
-            startButton.setEnabled(!startButton.isEnabled());
+                int rssi = intent.getIntExtra("rssi", 1);
+                if (rssi == 1) return;
+                String address = intent.getStringExtra("address");
+                String timestamp = intent.getStringExtra("timestamp");
+
+                try (LogLineDatabaseHelper logLineDatabaseHelper = new LogLineDatabaseHelper(this.mainActivity)) {
+                    logLineDatabaseHelper.insertLogLine(rssi, timestamp, address);
+                    TextView textView = this.mainActivity.findViewById(R.id.log);
+                    String lines = logLineDatabaseHelper.getAllLogLines().stream()
+                            .map(LogLine::toDisplayString)
+                            .collect(Collectors.joining("\n"));
+                    textView.setText(lines);
+                }
+            }
         }
     }
 }

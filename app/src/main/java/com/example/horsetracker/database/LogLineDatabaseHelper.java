@@ -18,6 +18,8 @@ public class LogLineDatabaseHelper extends SQLiteOpenHelper {
         super(context, "horsetracker_db", null, 1);
     }
 
+
+
     @Override
     public void onCreate(SQLiteDatabase sqLiteDatabase) {
         sqLiteDatabase.execSQL(LogLine.CREATE_TABLE);

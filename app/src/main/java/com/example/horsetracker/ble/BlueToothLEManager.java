@@ -1,6 +1,7 @@
 package com.example.horsetracker.ble;
 
 import android.Manifest;
+import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
@@ -10,16 +11,12 @@ import android.bluetooth.le.ScanSettings;
 import android.content.Context;
 import android.os.Handler;
 import android.util.Log;
-import android.widget.TextView;
 
 import com.example.horsetracker.MainActivity;
-import com.example.horsetracker.R;
 import com.example.horsetracker.database.LogLineDatabaseHelper;
-import com.example.horsetracker.database.model.LogLine;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.stream.Collectors;
 
 public class BlueToothLEManager {
 
@@ -34,19 +31,17 @@ public class BlueToothLEManager {
     };
 
     private final BluetoothLeScanner bluetoothLeScanner;
-    private final MainActivity activity;
     private boolean scanning;
     private final Handler handler = new Handler();
-    private static final long SCAN_PERIOD = 5000;
-    private static final long SCAN_PAUSE = 1000 * 60 * 5;
+    private final long scanPeriod;
+    private final ScanCallback callback;
 
 
-    public BlueToothLEManager(MainActivity activity) {
+    public BlueToothLEManager(long scanPeriod, ScanCallback callback) {
+        this.scanPeriod = scanPeriod;
+        this.callback = callback;
         this.scanning = false;
-        this.activity = activity;
-        this.bluetoothLeScanner = ((BluetoothManager) activity.getSystemService(Context.BLUETOOTH_SERVICE))
-                .getAdapter()
-                .getBluetoothLeScanner();
+        this.bluetoothLeScanner = BluetoothAdapter.getDefaultAdapter().getBluetoothLeScanner();
     }
 
     public void scanLeDevice() {
@@ -54,9 +49,9 @@ public class BlueToothLEManager {
             // Stops scanning after a predefined scan period.
             handler.postDelayed(() -> {
                 scanning = false;
-                bluetoothLeScanner.stopScan(leScanCallback);
+                bluetoothLeScanner.stopScan(callback);
                 Log.i("BleScan", "Stopped");
-            }, SCAN_PERIOD);
+            }, this.scanPeriod);
 
             scanning = true;
             ScanSettings settings = new ScanSettings.Builder()
@@ -71,35 +66,13 @@ public class BlueToothLEManager {
             ArrayList<ScanFilter> scanFilters = new ArrayList<>();
             scanFilters.add(filter);
 
-            bluetoothLeScanner.startScan(scanFilters, settings, leScanCallback);
-            Log.i("BleScan", "Started, Runtime: " + SCAN_PERIOD);
+            bluetoothLeScanner.startScan(scanFilters, settings, callback);
+            Log.i("BleScan", "Started, Runtime: " + scanPeriod);
         } else {
             scanning = false;
-            bluetoothLeScanner.stopScan(leScanCallback);
+            bluetoothLeScanner.stopScan(callback);
             Log.i("BleScan", "Stopped, because already running");
         }
     }
 
-
-    private final ScanCallback leScanCallback = new ScanCallback() {
-        @Override
-        public void onScanResult(int callbackType, ScanResult result) {
-            Log.i("BleScan", "Got callback: " + result.getDevice());
-            try (LogLineDatabaseHelper databaseHelper = new LogLineDatabaseHelper(activity)) {
-                databaseHelper.insertLogLine(result.getRssi(), Instant.now().toString(), result.getDevice().getAddress());
-            }
-
-            try (LogLineDatabaseHelper databaseHelper = new LogLineDatabaseHelper(activity)) {
-                TextView textView = activity.findViewById(R.id.log);
-                String lines = databaseHelper.getAllLogLines().stream()
-                        .map(LogLine::toDisplayString)
-                        .collect(Collectors.joining("\n"));
-                textView.setText(lines);
-            }
-        }
-    };
-
-    public void stopScan() {
-        this.scanning = false;
-    }
 }
