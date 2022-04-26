@@ -28,11 +28,11 @@ public class BlueToothLEManager {
             Manifest.permission.ACCESS_BACKGROUND_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.FOREGROUND_SERVICE,
+            Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
     };
 
     private final BluetoothLeScanner bluetoothLeScanner;
     private boolean scanning;
-    private final Handler handler = new Handler();
     private final long scanPeriod;
     private final ScanCallback callback;
     private final ScanSettings settings;

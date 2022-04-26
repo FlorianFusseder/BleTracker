@@ -33,10 +33,8 @@ public class MainActivity extends AppCompatActivity {
 
 
     private Intent intent;
-    private BroadcastReceiver broadcastReceiver;
     private Button startButton;
     private Button stopButton;
-    private Button clearButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,7 +44,8 @@ public class MainActivity extends AppCompatActivity {
                 checkSelfPermission(Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED ||
                 checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
                 checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
-                checkSelfPermission(Manifest.permission.FOREGROUND_SERVICE) != PackageManager.PERMISSION_GRANTED
+                checkSelfPermission(Manifest.permission.FOREGROUND_SERVICE) != PackageManager.PERMISSION_GRANTED ||
+                checkSelfPermission(Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
             requestPermissions(BlueToothLEManager.PERMISSIONS, 1);
         } else {
@@ -62,7 +61,7 @@ public class MainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_main);
 
-        broadcastReceiver = new DataUpdateReceiver(this);
+        BroadcastReceiver broadcastReceiver = new DataUpdateReceiver(this);
         registerReceiver(broadcastReceiver, new IntentFilter(BleScannerService.SCAN_STATE_CHANGED));
         registerReceiver(broadcastReceiver, new IntentFilter(BleScannerService.NEW_ENTRY));
 
@@ -72,7 +71,7 @@ public class MainActivity extends AppCompatActivity {
 
         startButton = findViewById(R.id.start);
         stopButton = findViewById(R.id.stop);
-        clearButton = findViewById(R.id.clear);
+        Button clearButton = findViewById(R.id.clear);
 
         stopButton.setEnabled(false);
 
